@@ -1,0 +1,182 @@
+<!doctype html>
+<html ng-app="yodude">
+    <head>
+        <script src="https://cdn.respoke.io/respoke.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.2/angular.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/webcamjs/1.0.4/webcam.min.js"></script>
+        <style type="text/css">
+            html, body {
+                font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+                font-size: 13px;
+                font-weight: 600;
+                text-align: center;
+                background: #275480;
+            }
+            label {
+                padding: 8px 0;
+                display: block;
+            }
+            camera {
+                display: none;
+            }
+            .person {
+                background: #33699E;
+                color: white;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                border-bottom-left-radius: 0;
+                border-bottom-right-radius: 0;
+                border: 0;
+                box-shadow: 0 0 8px #1C364E;
+                width: 320px;
+                height: auto;
+                display: inline-block;
+                margin: 10px;
+            }
+            .img {
+                width: 100%;
+                height: auto;
+                margin: 0;
+                padding: 0;
+            }
+            .respoke, .github {
+                position: fixed;
+                bottom: 8px;
+                color: #ccc !important;
+                text-decoration: none;
+            }
+            .github {
+                left: 13px;
+            }
+            .respoke {
+                right: 13px;
+            }
+        </style>
+        <script>
+            /* global angular */
+            /* global respoke */
+            /* global Webcam */
+            'use strict';
+            var GROUP_NAME = 'peeps';
+            var APP_ID = '2a56901d-78ca-4436-b698-4a7a66cdc1fc';
+
+            function noop() { }
+
+            function uid() {
+                return Math.random().toString(36).substring(2);
+            }
+
+            var yodude = angular.module('yodude', []);
+
+            yodude.controller('AppController', ['$rootScope', function ($rootScope) {
+                $rootScope.people = {};
+                $rootScope.people[$rootScope.myEndpoint] = '';
+            }]);
+
+            yodude.directive('pic', [function () {
+                return {
+                    scope: {
+                        base64: '='
+                    },
+                    template: '<img ng-src="{{ base64 }}" class="img" />'
+                }
+            }]);
+
+            yodude.directive('camera', ['$rootScope', '$timeout', function ($rootScope, $timeout) {
+                return {
+                    link: function (scope, el) {
+                        Webcam.set({
+                            width: 320,
+                            height: 240,
+                            dest_width: 320,
+                            dest_height: 240,
+                            image_format: 'jpeg',
+                            jpeg_quality: 50,
+                            force_flash: false,
+                            flip_horiz: true,
+                            fps: 5
+                        });
+                        Webcam.attach('my-camera');
+                        setInterval(function () {
+                            Webcam.snap(function (dataUri) {
+                                console.log('selfie size', dataUri.length);
+                                $rootScope.people[$rootScope.myEndpoint] = dataUri;
+                                var group = $rootScope.client.getGroup({ id: GROUP_NAME });
+                                group.sendMessage({
+                                    message: dataUri,
+                                    onError: function (err) { console.error(err); },
+                                    onSuccess: function () { console.log('sent message'); }
+                                });
+                                $timeout(noop);
+                            });
+                        }, 2000);
+                    },
+                    template: '<div id="my-camera" />'
+                }
+            }]);
+
+            yodude.run(['$rootScope', '$timeout', function ($rootScope, $timeout) {
+                respoke.log.setLevel('debug');
+                $rootScope.myEndpoint = uid();
+                var client = respoke.createClient({
+                    developmentMode: true,
+                    appId: APP_ID
+                });
+                client.listen('error', function (err) {
+                    console.error(err);
+                });
+                client.listen('connect', function () {
+                    client.join({
+                        id: GROUP_NAME,
+                        onSuccess: function (group) {
+                            console.log('joined', group);
+                            group.getMembers().then(function (connections) {
+                                connections.forEach(function (member) {
+                                    console.log('already here', member);
+                                    $rootScope.people[member.endpointId] = '';
+                                });
+                                $timeout(noop);
+                            });
+                        },
+                        onJoin: function (data) {
+                            var endpointId = data.connection.endpointId;
+                            $rootScope.people[endpointId] = '';
+                            $timeout(noop);
+                        },
+                        onLeave: function (data) {
+                            var endpointId = data.connection.endpointId;
+                            $rootScope.people[endpointId] = null;
+                            delete $rootScope.people[endpointId];
+                            $timeout(noop);
+                        }
+                    })
+                });
+                client.listen('message', function (data) {
+                    console.log('message', data);
+                    var imageContents = data.message.message;
+                    var endpointId = data.message.endpointId;
+                    $rootScope.people[endpointId] = imageContents;
+                    $timeout(noop);
+                });
+                client.connect({
+                    endpointId: $rootScope.myEndpoint
+                });
+                $rootScope.client = window.client = client;
+            }])
+
+        </script>
+    </head>
+    <body ng-controller="AppController">
+        <camera></camera>
+        <div ng-repeat="(endpoint, imageContents) in people" class="person" ng-show="imageContents">
+            <label>{{ endpoint }} {{ endpoint === myEndpoint ? '(me)' : '' }}</label>
+            <pic base64="imageContents" />
+        </div>
+        <a href="https://github.com/respoke/yodude" target="_blank" class="github">
+            fork me on github
+        </a>
+        <a href="https://www.respoke.io" target="_blank" class="respoke">
+            powered by respoke
+        </a>
+    </body>
+</html>
