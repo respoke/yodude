@@ -104,19 +104,25 @@
                             fps: 5
                         });
                         Webcam.attach('my-camera');
-                        setInterval(function () {
-                            Webcam.snap(function (dataUri) {
-                                console.log('selfie size', dataUri.length);
-                                $rootScope.people[$rootScope.myEndpoint] = dataUri;
-                                var group = $rootScope.client.getGroup({ id: GROUP_NAME });
-                                group.sendMessage({
-                                    message: dataUri,
-                                    onError: function (err) { console.error(err); },
-                                    onSuccess: function () { console.log('sent message'); }
+                        Webcam.on('live', function () {
+                            setInterval(function () {
+                                Webcam.snap(function (dataUri) {
+                                    console.log('selfie size', dataUri.length);
+                                    $rootScope.people[$rootScope.myEndpoint] = dataUri;
+                                    var group = $rootScope.client.getGroup({ id: GROUP_NAME });
+                                    if (!group) { return; } // respoke not connected
+                                    group.sendMessage({
+                                        message: dataUri,
+                                        onError: function (err) { console.error(err); },
+                                        onSuccess: function () { console.log('sent message'); }
+                                    });
+                                    $timeout(noop);
                                 });
-                                $timeout(noop);
-                            });
-                        }, 2000);
+                            }, 2000);
+                        });
+                        Webcam.on('error', function (err) {
+                            console.error('Webcamjs:', err);
+                        });
                     },
                     template: '<div id="my-camera" />'
                 }
