@@ -4,6 +4,7 @@
         <script src="https://cdn.respoke.io/respoke.min.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.2/angular.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/webcamjs/1.0.4/webcam.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jic/1.1.1/JIC.min.js"></script>
         <style type="text/css">
             html, body {
                 font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
@@ -22,10 +23,6 @@
             .person {
                 background: #33699E;
                 color: white;
-                border-top-left-radius: 8px;
-                border-top-right-radius: 8px;
-                border-bottom-left-radius: 0;
-                border-bottom-right-radius: 0;
                 border: 0;
                 box-shadow: 0 0 8px #1C364E;
                 width: 320px;
@@ -73,6 +70,28 @@
                 return Math.random().toString(36).substring(2);
             }
 
+            function grayscale(src){
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                var imgObj = new Image();
+                imgObj.src = src;
+                canvas.width = imgObj.width;
+                canvas.height = imgObj.height;
+                ctx.drawImage(imgObj, 0, 0);
+                var imgPixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                for (var y = 0; y < imgPixels.height; y++) {
+                    for (var x = 0; x < imgPixels.width; x++) {
+                        var i = (y * 4) * imgPixels.width + x * 4;
+                        var avg = (imgPixels.data[i] + imgPixels.data[i + 1] + imgPixels.data[i + 2]) / 3;
+                        imgPixels.data[i] = avg;
+                        imgPixels.data[i + 1] = avg;
+                        imgPixels.data[i + 2] = avg;
+                    }
+                }
+                ctx.putImageData(imgPixels, 0, 0, 0, 0, imgPixels.width, imgPixels.height);
+                return canvas.toDataURL();
+            }
+
             var yodude = angular.module('yodude', []);
 
             yodude.controller('AppController', ['$rootScope', function ($rootScope) {
@@ -101,24 +120,30 @@
                             jpeg_quality: 50,
                             force_flash: false,
                             flip_horiz: true,
-                            fps: 5
+                            fps: 2
                         });
                         Webcam.attach('my-camera');
                         Webcam.on('live', function () {
                             setInterval(function () {
                                 Webcam.snap(function (dataUri) {
-                                    console.log('selfie size', dataUri.length);
-                                    $rootScope.people[$rootScope.myEndpoint] = dataUri;
+                                    var imageGray = grayscale(dataUri);
+                                    var img = new Image();
+                                    img.width = 320;
+                                    img.height = 240;
+                                    img.src = imageGray;
+                                    var imageCompressed = jic.compress(img, 50, 'jpg').src;
+                                    console.log('selfie size', dataUri.length, imageCompressed.length);
+                                    $rootScope.people[$rootScope.myEndpoint] = imageCompressed;
                                     var group = $rootScope.client.getGroup({ id: GROUP_NAME });
                                     if (!group) { return; } // respoke not connected
                                     group.sendMessage({
-                                        message: dataUri,
+                                        message: imageCompressed,
                                         onError: function (err) { console.error(err); },
                                         onSuccess: function () { console.log('sent message'); }
                                     });
                                     $timeout(noop);
                                 });
-                            }, 2000);
+                            }, 5000);
                         });
                         Webcam.on('error', function (err) {
                             console.error('Webcamjs:', err);
