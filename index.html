@@ -4,51 +4,7 @@
         <script src="https://cdn.respoke.io/respoke.min.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.2/angular.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/webcamjs/1.0.4/webcam.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jic/1.1.1/JIC.min.js"></script>
-        <style type="text/css">
-            html, body {
-                font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
-                font-size: 13px;
-                font-weight: 600;
-                text-align: center;
-                background: #275480;
-            }
-            label {
-                padding: 8px 0;
-                display: block;
-            }
-            camera {
-                display: none;
-            }
-            .person {
-                background: #33699E;
-                color: white;
-                border: 0;
-                box-shadow: 0 0 8px #1C364E;
-                width: 320px;
-                height: auto;
-                display: inline-block;
-                margin: 10px;
-            }
-            .img {
-                width: 100%;
-                height: auto;
-                margin: 0;
-                padding: 0;
-            }
-            .respoke, .github {
-                position: fixed;
-                bottom: 8px;
-                color: #ccc !important;
-                text-decoration: none;
-            }
-            .github {
-                left: 13px;
-            }
-            .respoke {
-                right: 13px;
-            }
-        </style>
+        <link rel="stylesheet" type="text/css" href="index.css" />
         <script>
             /* global angular */
             /* global respoke */
@@ -67,29 +23,7 @@
             function noop() { }
 
             function uid() {
-                return Math.random().toString(36).substring(2);
-            }
-
-            function grayscale(src){
-                var canvas = document.createElement('canvas');
-                var ctx = canvas.getContext('2d');
-                var imgObj = new Image();
-                imgObj.src = src;
-                canvas.width = imgObj.width;
-                canvas.height = imgObj.height;
-                ctx.drawImage(imgObj, 0, 0);
-                var imgPixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                for (var y = 0; y < imgPixels.height; y++) {
-                    for (var x = 0; x < imgPixels.width; x++) {
-                        var i = (y * 4) * imgPixels.width + x * 4;
-                        var avg = (imgPixels.data[i] + imgPixels.data[i + 1] + imgPixels.data[i + 2]) / 3;
-                        imgPixels.data[i] = avg;
-                        imgPixels.data[i + 1] = avg;
-                        imgPixels.data[i + 2] = avg;
-                    }
-                }
-                ctx.putImageData(imgPixels, 0, 0, 0, 0, imgPixels.width, imgPixels.height);
-                return canvas.toDataURL();
+                return Math.random().toString(36).substring(2, 6);
             }
 
             var yodude = angular.module('yodude', []);
@@ -97,6 +31,35 @@
             yodude.controller('AppController', ['$rootScope', function ($rootScope) {
                 $rootScope.people = {};
                 $rootScope.people[$rootScope.myEndpoint] = '';
+
+                $rootScope.activeCall = null;
+
+                $rootScope.startCall = function (endpointId) {
+                    if ($rootScope.activeCall || endpointId === $rootScope.myEndpoint) { return; }
+                    $rootScope.activeCall = $rootScope.client.startVideoCall({
+                        endpointId: endpointId,
+                        videoRemoteElement: document.getElementById('video-' + endpointId),
+                        videoLocalElement: document.getElementById('video-' + $rootScope.myEndpoint),
+
+                        onConnect: function () {
+                            document.getElementById('video-' + endpointId).play();
+                            document.getElementById('video-' + $rootScope.myEndpoint);
+                        },
+                        onHangup: function () {
+                            $rootScope.activeCall = null;
+                        },
+                        onError: function () {
+                            $rootScope.activeCall = null;
+                        }
+                    });
+                };
+                $rootScope.stopCall = function (endpointId, $event) {
+                    $event.preventDefault();
+                    $event.stopPropagation();
+                    if (!$rootScope.activeCall) { return; }
+                    $rootScope.activeCall.hangup();
+                    $rootScope.activeCall = null;
+                }
             }]);
 
             yodude.directive('pic', [function () {
@@ -119,31 +82,25 @@
                             image_format: 'jpeg',
                             jpeg_quality: 50,
                             force_flash: false,
-                            flip_horiz: true,
-                            fps: 2
+                            flip_horiz: false,
+                            // fps: 25
                         });
                         Webcam.attach('my-camera');
                         Webcam.on('live', function () {
                             setInterval(function () {
                                 Webcam.snap(function (dataUri) {
-                                    var imageGray = grayscale(dataUri);
-                                    var img = new Image();
-                                    img.width = 320;
-                                    img.height = 240;
-                                    img.src = imageGray;
-                                    var imageCompressed = jic.compress(img, 50, 'jpg').src;
-                                    console.log('selfie size', dataUri.length, imageCompressed.length);
-                                    $rootScope.people[$rootScope.myEndpoint] = imageCompressed;
+                                    console.log('selfie size', dataUri.length);
+                                    $rootScope.people[$rootScope.myEndpoint] = dataUri;
                                     var group = $rootScope.client.getGroup({ id: GROUP_NAME });
                                     if (!group) { return; } // respoke not connected
                                     group.sendMessage({
-                                        message: imageCompressed,
+                                        message: dataUri,
                                         onError: function (err) { console.error(err); },
                                         onSuccess: function () { console.log('sent message'); }
                                     });
                                     $timeout(noop);
                                 });
-                            }, 5000);
+                            }, 3000);
                         });
                         Webcam.on('error', function (err) {
                             console.error('Webcamjs:', err);
@@ -196,6 +153,32 @@
                     $rootScope.people[endpointId] = imageContents;
                     $timeout(noop);
                 });
+                client.listen('call', function (evt) {
+                    var call = evt.call;
+                    console.log('incoming call', evt.call);
+                    if (call.caller) { return; }
+                    if ($rootScope.activeCall) {
+                        call.hangup();
+                        return;
+                    }
+                    call.answer({
+                        videoRemoteElement: document.getElementById('video-' + call.remoteEndpoint.id),
+                        videoLocalElement: document.getElementById('video-' + $rootScope.myEndpoint),
+
+                        onConnect: function () {
+                            document.getElementById('video-' + endpointId).play();
+                            document.getElementById('video-' + $rootScope.myEndpoint);
+                        },
+                        onHangup: function () {
+                            $rootScope.activeCall = null;
+                        },
+                        onError: function () {
+                            $rootScope.activeCall = null;
+                        }
+                    });
+                    $rootScope.activeCall = call;
+                });
+
                 client.connect({
                     endpointId: $rootScope.myEndpoint
                 });
@@ -206,9 +189,12 @@
     </head>
     <body ng-controller="AppController">
         <camera></camera>
-        <div ng-repeat="(endpoint, imageContents) in people" class="person" ng-show="imageContents">
+        <div ng-repeat="(endpoint, imageContents) in people" class="person" ng-click="startCall(endpoint)">
             <label>{{ endpoint }} {{ endpoint === myEndpoint ? '(me)' : '' }}</label>
-            <pic base64="imageContents" />
+            <pic base64="imageContents"
+                ng-show="!activeCall || (activeCall.remoteEndpoint.id !== endpoint && endpoint !== myEndpoint)"></pic>
+            <video id="video-{{ endpoint }}" ng-click="stopCall(endpoint, $event)"
+                ng-show="(activeCall && endpoint === myEndpoint) || activeCall.remoteEndpoint.id === endpoint" />
         </div>
         <a href="https://github.com/respoke/yodude" target="_blank" class="github">
             fork me on github

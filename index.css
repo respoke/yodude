@@ -1,0 +1,47 @@
+html, body {
+    font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    background: #275480;
+}
+label {
+    padding: 13px 0;
+    display: block;
+}
+camera {
+    display: none;
+}
+.person {
+    background: white;
+    color: #33699E;
+    border: 0;
+    box-shadow: 0 0 8px #0A141D;
+    width: 320px;
+    height: 320px;
+    display: inline-block !important;
+    margin: 10px;
+}
+.img, video {
+    width: 100%;
+    height: auto;
+    margin: 0;
+    padding: 0;
+}
+img {
+    filter: contrast(1) sepia(100%) grayscale(50%);
+    -webkit-filter: contrast(1) sepia(100%) grayscale(70%);
+}
+
+.respoke, .github {
+    position: fixed;
+    bottom: 8px;
+    color: #ccc !important;
+    text-decoration: none;
+}
+.github {
+    left: 13px;
+}
+.respoke {
+    right: 13px;
+}
