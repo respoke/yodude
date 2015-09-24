@@ -4,6 +4,7 @@
         <script src="https://cdn.respoke.io/respoke.min.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.2/angular.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/webcamjs/1.0.4/webcam.min.js"></script>
+        <script src="respoke-logo.js"></script>
         <link rel="stylesheet" type="text/css" href="index.css" />
         <script>
             /* global angular */
@@ -20,10 +21,28 @@
             var GROUP_NAME = 'peeps';
             var APP_ID = '2a56901d-78ca-4436-b698-4a7a66cdc1fc';
 
+
             function noop() { }
 
             function uid() {
                 return Math.random().toString(36).substring(2, 6);
+            }
+
+            function resetVideos() {
+                var vids = document.querySelectorAll('video');
+                var vid;
+                var newVid;
+                var parent;
+                for (var i = 0; i < vids.length; i++) {
+                    vid = vids.item(i);
+                    if (vid.id) {
+                        newVid = document.createElement('video');
+                        newVid.id = vid.id;
+                        parent = vid.parentNode;
+                        parent.removeChild(vid);
+                        parent.appendChild(newVid);
+                    }
+                }
             }
 
             var yodude = angular.module('yodude', []);
@@ -35,7 +54,12 @@
                 $rootScope.activeCall = null;
 
                 $rootScope.startCall = function (endpointId) {
-                    if ($rootScope.activeCall || endpointId === $rootScope.myEndpoint) { return; }
+                    if ($rootScope.activeCall || endpointId === $rootScope.myEndpoint) {
+                        return; // it is yourself or you are already on a call
+                    }
+                    if ($rootScope.people[endpointId] === window.RESPOKE_LOGO) {
+                        return; // person is on a call
+                    }
                     $rootScope.activeCall = $rootScope.client.startVideoCall({
                         endpointId: endpointId,
                         videoRemoteElement: document.getElementById('video-' + endpointId),
@@ -47,9 +71,11 @@
                         },
                         onHangup: function () {
                             $rootScope.activeCall = null;
+                            resetVideos();
                         },
                         onError: function () {
                             $rootScope.activeCall = null;
+                            resetVideos();
                         }
                     });
                 };
@@ -88,19 +114,31 @@
                         Webcam.attach('my-camera');
                         Webcam.on('live', function () {
                             setInterval(function () {
+
+                                var group = $rootScope.client.getGroup({ id: GROUP_NAME });
+                                if (!group) { return; } // respoke not connected
+
+                                if ($rootScope.activeCall) {
+                                    group.sendMessage({
+                                        message: window.RESPOKE_LOGO,
+                                        onError: function (err) { console.error(err); },
+                                        onSuccess: function () { console.log('sent message'); }
+                                    });
+                                    return;
+                                }
+
                                 Webcam.snap(function (dataUri) {
                                     console.log('selfie size', dataUri.length);
                                     $rootScope.people[$rootScope.myEndpoint] = dataUri;
-                                    var group = $rootScope.client.getGroup({ id: GROUP_NAME });
-                                    if (!group) { return; } // respoke not connected
                                     group.sendMessage({
                                         message: dataUri,
                                         onError: function (err) { console.error(err); },
                                         onSuccess: function () { console.log('sent message'); }
                                     });
-                                    $timeout(noop);
                                 });
-                            }, 3000);
+
+                                $timeout(noop);
+                            }, 4000);
                         });
                         Webcam.on('error', function (err) {
                             console.error('Webcamjs:', err);
@@ -171,9 +209,11 @@
                         },
                         onHangup: function () {
                             $rootScope.activeCall = null;
+                            resetVideos();
                         },
                         onError: function () {
                             $rootScope.activeCall = null;
+                            resetVideos();
                         }
                     });
                     $rootScope.activeCall = call;
@@ -193,8 +233,10 @@
             <label>{{ endpoint }} {{ endpoint === myEndpoint ? '(me)' : '' }}</label>
             <pic base64="imageContents"
                 ng-show="!activeCall || (activeCall.remoteEndpoint.id !== endpoint && endpoint !== myEndpoint)"></pic>
-            <video id="video-{{ endpoint }}" ng-click="stopCall(endpoint, $event)"
-                ng-show="(activeCall && endpoint === myEndpoint) || activeCall.remoteEndpoint.id === endpoint" />
+            <div ng-click="stopCall(endpoint, $event)"
+                ng-show="(activeCall && endpoint === myEndpoint) || activeCall.remoteEndpoint.id === endpoint">
+                <video id="video-{{ endpoint }}" />
+            </div>
         </div>
         <a href="https://github.com/respoke/yodude" target="_blank" class="github">
             fork me on github
