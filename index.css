@@ -18,7 +18,7 @@ camera {
     background: white;
     color: #33699E;
     border: 0;
-    box-shadow: 0 0 8px #0A141D;
+    border-bottom: 3px solid #1C364E;
     width: 320px;
     height: 320px;
     display: inline-block !important;
@@ -37,11 +37,11 @@ camera {
     padding: 0;
 }
 img {
-    filter: contrast(1) sepia(100%) grayscale(50%);
-    -webkit-filter: contrast(1) sepia(100%) grayscale(70%);
+    filter: contrast(1.5) grayscale(100%);
+    -webkit-filter: contrast(1.5) grayscale(100%);
 }
 
-.respoke, .github {
+.respoke, .github, .instructions {
     position: fixed;
     bottom: 8px;
     color: #ccc !important;
@@ -52,4 +52,10 @@ img {
 }
 .respoke {
     right: 13px;
+}
+.instructions {
+    right: 50%;
+    margin-right: -100px;
+    width: 200px;
+    font-weight: normal;
 }
