@@ -14,6 +14,10 @@ var APP_ID = '2a56901d-78ca-4436-b698-4a7a66cdc1fc';
 
 function noop() { }
 
+function playSound() {
+    document.getElementById('blop').play();
+}
+
 function uid() {
     return Math.random().toString(36).substring(2, 6);
 }
@@ -54,6 +58,7 @@ yodude.controller('AppController', ['$rootScope', function ($rootScope) {
             endpointId: endpointId,
             videoRemoteElement: document.getElementById('video-' + endpointId),
             videoLocalElement: document.getElementById('video-' + $rootScope.myEndpoint),
+            onConnect: playSound,
 
             onHangup: function () {
                 $rootScope.activeCall = null;
@@ -191,6 +196,7 @@ yodude.run(['$rootScope', '$timeout', function ($rootScope, $timeout) {
         call.answer({
             videoRemoteElement: document.getElementById('video-' + call.remoteEndpoint.id),
             videoLocalElement: document.getElementById('video-' + $rootScope.myEndpoint),
+            onConnect: playSound,
 
             onHangup: function () {
                 $rootScope.activeCall = null;

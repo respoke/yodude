@@ -9,6 +9,9 @@
         <script src="yodude.js"></script>
     </head>
     <body ng-controller="AppController">
+        <audio id="blop">
+            <source src="blop.ogg" type="audio/ogg" />
+            </audio>
         <camera></camera>
         <div ng-repeat="(endpoint, imageContents) in people" class="person" ng-click="startCall(endpoint)">
             <pic base64="imageContents"
