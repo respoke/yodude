@@ -6,21 +6,21 @@ html, body {
     background: #275480;
     padding-bottom: 50px;
 }
-label {
-    padding: 13px;
-    text-align: right;
-    display: block;
-}
+
+/* keep the webcam snapper video hidden */
 camera {
     display: none;
 }
+
+/* Person picture and video cards */
+
 .person {
-    background: white;
+    background: rgb(93, 93, 93); /* same as grayscale respoke logo */
     color: #33699E;
     border: 0;
     border-bottom: 3px solid #1C364E;
     width: 320px;
-    height: 320px;
+    height: 240px;
     display: inline-block !important;
     margin: 10px;
     border-top-left-radius: 40px;
@@ -40,6 +40,14 @@ img {
     filter: grayscale(100%);
     -webkit-filter: grayscale(100%);
 }
+video {
+    border-top-left-radius: 40px;
+    border-bottom-left-radius: 5px;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 40px;
+}
+
+/* Footer */
 
 .respoke, .github, .instructions {
     position: fixed;

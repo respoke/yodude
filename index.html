@@ -11,7 +11,6 @@
     <body ng-controller="AppController">
         <camera></camera>
         <div ng-repeat="(endpoint, imageContents) in people" class="person" ng-click="startCall(endpoint)">
-            <label>{{ endpoint }} {{ endpoint === myEndpoint ? '(me)' : '' }}</label>
             <pic base64="imageContents"
                 ng-show="!activeCall || (activeCall.remoteEndpoint.id !== endpoint && endpoint !== myEndpoint)"></pic>
             <div ng-click="stopCall(endpoint, $event)"
