@@ -37,8 +37,8 @@ camera {
     padding: 0;
 }
 img {
-    filter: contrast(1.5) grayscale(100%);
-    -webkit-filter: contrast(1.5) grayscale(100%);
+    filter: grayscale(100%);
+    -webkit-filter: grayscale(100%);
 }
 
 .respoke, .github, .instructions {
